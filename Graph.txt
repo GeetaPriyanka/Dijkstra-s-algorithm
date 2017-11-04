@@ -1,0 +1,791 @@
+//Name: Geeta Priyanka Janapareddy, Student ID: 800988736
+
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.util.StringTokenizer;
+import java.util.TreeSet;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.LinkedList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Scanner;
+
+
+
+// Used to signal violations of preconditions for
+// various shortest path algorithms.
+
+@SuppressWarnings("serial")
+class GraphException extends RuntimeException
+{
+    public GraphException( String name )
+    {
+        super( name );
+    }
+}
+/**
+ * Edge Class stores the information related to the Egde.
+ */
+
+class Edge {
+	public Vertex destName; // Destination Node
+	public float weight; // Distance of path
+	
+	// Constructor of the Edge Class.
+	public Edge(Vertex w, float d) {
+		destName = w;
+		weight = d;
+	}
+}
+// Represents a vertex in the graph.
+class Vertex
+{
+    public String     name;   // Vertex name
+    //public List<Vertex> adj;    // Adjacent vertices
+    public List<Edge> adj;    // Adjacent vertices
+    public Vertex     prev;   // Previous vertex on shortest path
+    public float        dist;  // Distance of path
+    //public float weight;
+    public String status;
+
+    public Vertex( String nm )
+      { name = nm; adj = new LinkedList<Edge>( ); reset( ); }
+
+    public void reset( )
+      { dist = Graph.INFINITY; prev = null; }    
+      
+}
+
+// Graph class: evaluate shortest paths.
+//
+// CONSTRUCTION: with no parameters.
+//
+// ******************PUBLIC OPERATIONS**********************
+// void addEdge( String v, String w )
+//                              --> Add additional edge
+// void printPath( String w )   --> Print path after alg is run
+// void unweighted( String s )  --> Single-source unweighted
+// ******************ERRORS*********************************
+// Some error checking is performed to make sure graph is ok,
+// and to make sure graph satisfies properties needed by each
+// algorithm.  Exceptions are thrown if errors are detected.
+public class Graph
+{
+    public static final int INFINITY = Integer.MAX_VALUE;
+    private Map<String,Vertex> vertexMap = new HashMap<String,Vertex>( );
+    public List<Pair> downEdges = new LinkedList<Pair>();
+    public ArrayList<String> list= new ArrayList<String>();
+    private TreeSet<String> reachableNodes = new TreeSet<String>(); //Stores the visited nodes for the 'reachable' function
+
+    
+    /**
+     * Adds a new edge to the graph. If an edge is already present then it will update the distance and if distance is
+	 * also the same then it will do nothing.
+     * @param time 
+     * @throws IOException 
+     */
+       
+    public void addNewEdge(String sourceName, String destName, float time) throws IOException {
+		Vertex v = getVertex(sourceName);
+		Vertex w = getVertex(destName);
+		Iterator<Edge> listIterator = v.adj.listIterator();
+		int i = 0, count = 0;
+		while (listIterator.hasNext()) {
+		Edge e = listIterator.next(); 	
+		if (w.name.equals(e.destName.name)) {
+			count = 1;
+			if(v.adj.get(i).weight != time)
+			{
+				v.adj.get(i).weight = time;
+		//		System.out.println("Edge is already present, updating the transmission time from " +sourceName +" to " +destName +" to the new time : " + time);
+			}
+			else
+			System.out.println("Edge is already present with the same transmission time ");
+		}
+		i++;
+	}
+	if (count == 0){
+		v.adj.add(new Edge(w, time));
+	//	System.out.println("Adding new edge from "+sourceName +" to "+destName +" with transmission time : "+ time);
+		//bw.write("Adding new edge");
+	}
+}
+    /**
+     * This function deletes an edge from the graph.
+     */
+    
+    public void deleteEdge(String sourceName, String destName) throws IOException
+    {
+    	Vertex v = getVertex(sourceName);
+		Vertex w = getVertex(destName);
+		int i=0,count=0;
+		//System.out.println(v.adj);
+		Iterator<Edge> listIterator = v.adj.listIterator();
+		while (listIterator.hasNext()) {
+		Edge e = listIterator.next(); 	
+		if (w.name.equals(e.destName.name))
+		{
+			count++;
+			break;
+		}
+		i++;
+		}
+		if(count==1)
+		{
+			v.adj.remove(i);
+	//		System.out.println("Deleted the edge from "+ sourceName + " to " + destName);
+		}
+	}
+    
+    /**
+     * This function disables an edge
+     */
+    
+    public void edgeDown(String sourceName, String destName) throws IOException
+    {
+    	int count=0;Pair p=null;
+		Iterator<Pair> listIterator = downEdges.listIterator();
+		while (listIterator.hasNext()) {
+		p = listIterator.next(); 	
+		if ((p.src().equals(sourceName)) && (p.dest().equals(destName)))
+		{
+			//System.out.println("Edge is already down");
+			count++;
+			break;
+		}
+		}
+		if(count==0)
+		{
+			//System.out.println(p.src() + "," + p.dest());
+			downEdges.add(new Pair(sourceName,destName));
+			
+		//	System.out.println("Edge was brought down");
+		}
+    }
+    
+    /**
+     *  This function will return if the edge is down/disabled else it will return false.
+     */
+    
+    public Boolean isEdgeDown(String sourceName, String destName) {
+		Iterator<Pair> listIterator = downEdges.iterator();
+		int down = 0;
+	
+		if (downEdges.size() != 0) {
+			while (listIterator.hasNext()) {
+				Pair p = listIterator.next();
+				if ((p.src().equals(sourceName)) && (p.dest().equals(destName))){
+					down = 1;
+					break;
+				}
+			}
+		}
+	
+		if (down == 0)
+			return false;
+		else
+			return true;
+	}
+    
+    /**
+	 * This function enables the edge if it is disabled. Else do nothing.
+	*/
+    
+    public void edgeUp(String sourceName, String destName) throws IOException
+    {
+    	Iterator<Pair> listIterator = downEdges.listIterator();
+    	int count=0;
+    	Pair p =null;
+		while (listIterator.hasNext()) {
+		p= listIterator.next(); 	
+		if ((p.src().equals(sourceName)) && (p.dest().equals(destName)))
+		{
+			count++;
+			break;
+		}
+		}
+		if(count==1)
+		{
+		downEdges.remove(p);
+		//System.out.println("Edge has been brought up");
+		}
+		else if(count==0)
+		System.out.println("Edge is already up");
+
+    }
+    
+    
+    /**
+	 * This function makes the status of the Vertex as DOWN if it is Up. Else do nothing.
+	 */
+    
+    public void vertexDown(String vertex) throws IOException
+    {
+        Vertex v = vertexMap.get( vertex );
+        if(v.status=="Down")
+        {
+        	System.out.println("Vertex is already down");
+        }
+        else
+        {
+        	v.status="Down";
+   //     	System.out.println("Vertex has been brought down");
+        }
+    }
+    
+    
+    /**
+	 * This function makes the status of the Vertex as Up if it is DOWN. Else do nothing.
+	*/
+    
+    
+    public void vertexUp(String vertex) throws IOException
+    
+  
+    {
+        Vertex v = vertexMap.get( vertex );
+        if(v.status=="Up")
+        {
+        	System.out.println("Vertex is already up");
+        }
+        else
+        {
+        	v.status="Up";
+      //  	System.out.println("Vertex has been brought up");
+        }
+    }
+    
+       /**
+     * Driver routine to print total distance.
+     * It calls recursive routine to print shortest path to
+     * destNode after a shortest path algorithm has run.
+     * @throws IOException 
+     */
+    public void printPath( String destName ) throws IOException
+    {
+        Vertex w = vertexMap.get( destName );
+        if( w == null )
+            throw new NoSuchElementException( "Destination vertex not found" );
+        else if( w.dist == INFINITY )
+            System.out.println( destName + " is unreachable" );
+        else
+        {
+            printPath( w );
+            System.out.print( " "+w.dist );
+            System.out.println( );
+        }
+    }
+
+    /**
+     * If vertexName is not present, add it to vertexMap.
+     * In either case, return the Vertex.
+     */
+    private Vertex getVertex( String vertexName )
+    {
+        Vertex v = vertexMap.get( vertexName );
+        if( v == null )
+        {
+            v = new Vertex( vertexName );
+            v.status="Up";
+            vertexMap.put( vertexName, v );
+        }
+        return v;
+    }
+
+    /**
+     * Recursive routine to print shortest path to dest
+     * after running shortest path algorithm. The path
+     * is known to exist.
+     * @throws IOException 
+     */
+    private void printPath( Vertex dest ) throws IOException
+    {
+        if( dest.prev != null )
+        {
+            printPath( dest.prev );
+            System.out.print( " to " );
+        }
+        System.out.print( dest.name );
+    }
+    
+    
+    /** This function prints all the vertices in alphabetical order 
+     * and the outward edge for each vertex in alphabetical order.
+     * When a vertex is down, it appends the word DOWN after the vertex.
+     *  When an edge is down, it appends the word DOWN after the edge.
+
+     * @throws IOException
+     */
+    
+    public void Print() throws IOException
+    {
+		
+		TreeSet<String> tree = new TreeSet<String>();
+		
+		System.out.println();
+	
+		for (String key : vertexMap.keySet()) {
+			tree.add(key);
+		}
+	
+		Iterator<String> itr = tree.iterator();
+		String adjN;
+		while (itr.hasNext()) {
+			adjN = itr.next();
+			System.out.print(adjN);
+			if (vertexMap.get(adjN).status != "Up")
+				System.out.print(" DOWN");
+			System.out.println();
+		
+		TreeSet<String> adj = new TreeSet<String>();
+		HashMap<String, Float> temp = new HashMap<String, Float>();
+		for (Edge key : vertexMap.get(adjN).adj) {
+			adj.add(key.destName.name);
+			temp.put(key.destName.name, key.weight);
+		}
+
+		Iterator<String> adjItr = adj.iterator();
+		while (adjItr.hasNext()) {
+			String adjItrN = adjItr.next();
+			System.out.print("  " + adjItrN + " " + temp.get(adjItrN));
+			if (isEdgeDown(adjN, adjItrN))
+				System.out.print(" DOWN");
+			System.out.println();
+		}
+   	 }
+   }
+   
+    /** 
+    * Prints all the reachable vertices in the graph
+	*/
+    
+    
+    /** Running time ->
+	 * Here the algorithm reachable( ) will be called for each of the N vertices. So the time 
+	 * complexity of it will be O(n). And the recursive algorithm reachablenode will  run for all the
+	 * adjacent vertices which takes O(log n) times.
+	 * Hence the overall complexity of this algorithm is : O(nlogn)
+    */
+    
+    public void reachable()
+    {
+    	TreeSet<String> tree = new TreeSet<String>();
+    	
+		System.out.println();
+	
+		for (String key : vertexMap.keySet()) {
+			if (vertexMap.get(key).status == "Up")
+				
+			tree.add(key);
+		}
+	
+		Iterator<String> itr = tree.iterator();
+		String adjN;
+	
+		while (itr.hasNext()) {
+			adjN = itr.next();
+			System.out.print(adjN);
+			System.out.println();
+	
+			reachableNodes.clear();
+			reachableNodes.add(adjN);
+	
+			reachablenode(adjN);
+			
+	
+			Iterator<String> adjItr = reachableNodes.iterator();
+			while (adjItr.hasNext()) {
+				String adjItrN = adjItr.next();
+				if (adjItrN != adjN)
+					System.out.println("  " + adjItrN);
+		}
+   	 }
+    }
+    
+    /**
+	 * Recursive algorithm which will be called by the reachable() function
+	 */
+   
+    
+    private void reachablenode(String node) {
+    	
+		TreeSet<String> adj = new TreeSet<String>();
+		for (Edge key : vertexMap.get(node).adj) {
+			if (key.destName.status != "Up")
+				continue;
+			if (isEdgeDown(node, key.destName.name))
+				continue;
+	
+			adj.add(key.destName.name);
+		}
+		for (String str : adj) {
+			if (reachableNodes.contains(str))
+				continue;
+			else {
+				reachableNodes.add(str);
+				reachablenode(str);
+			}
+		}
+	}
+
+
+
+    
+    /**
+     * Initializes the vertex output info prior to running
+     * any shortest path algorithm.
+     */
+    private void clearAll( )
+    {
+        for( Vertex v : vertexMap.values( ) )
+            v.reset( );
+    }
+
+	public void dijkstra(String sourceName) {
+		clearAll();
+
+		MinHeap pQueue = new MinHeap(vertexMap.size());
+
+		Vertex start = vertexMap.get(sourceName);
+		if (start == null){
+			System.out.println("Start vertex not found");return;
+		}
+		if (start.status != "Up"){
+			System.out.println("Vertex is Down");return;
+		}
+
+		start.dist = (float) 0.0;
+
+		pQueue.insert(new Path(start.name, start.dist));
+
+		while (pQueue.size() != 0) {
+			Vertex v = getVertex(pQueue.remove().str);
+
+			for (Edge e : v.adj) {
+				Vertex w = e.destName;
+				if (w.status != "Up")
+					continue;
+				if (isEdgeDown(v.name, w.name))
+					continue;
+
+				double cvw = e.weight;
+
+				if (cvw < 0)
+					throw new GraphException("Graph has negative edges");
+				if (w.dist > v.dist + cvw) {
+					w.dist = (float) (v.dist + cvw);
+					w.prev = v;
+
+					pQueue.insert(new Path(w.name, w.dist));
+				}
+			}
+		}
+	}
+
+	
+
+    /**
+     * Process a request; return false if end of file.
+       The program will exit when the command "quit" is entered.
+
+     * @throws NumberFormatException 
+     */
+    public static boolean processRequest( BufferedReader buf1, Graph g ) throws NumberFormatException, IOException
+    {
+    	try {
+    		
+			//System.out.print("\nEnter Query: ");
+    		
+    		String line;
+    		        
+    		while((line=buf1.readLine()) != null){
+    		 //  sb.append(line).append("\n");
+    		 // System.out.println( line ) ;
+				String[] words = line.split(" ");
+
+    			switch (words[0]) {
+    			
+    			case "print":
+    				g.Print();
+    				break;
+
+    			case "quit":
+    				return false;
+    	
+    			case "reachable":
+    				g.reachable();
+    				break;
+    	
+    			case "path":
+    				if (words.length == 3) {
+    	       			g.dijkstra(words[1]);
+    					g.printPath(words[2]);
+    				}else
+    					System.out.println("Invalid path Query");
+
+    					break;
+    	
+    			case "edgeup":
+    				if (words.length == 3) {
+    					g.edgeUp(words[1], words[2]);
+    				} else
+    					System.out.println("Invalid EdgeUp Query");
+    				break;
+    	
+    			case "edgedown":
+    				if (words.length == 3) {
+    					g.edgeDown(words[1], words[2]);
+    				} else
+    					System.out.println("Invalid EdgeDown Query");
+    				break;
+    	
+    			case "vertexup":
+    				if (words.length == 2) {
+    					g.vertexUp(words[1]);
+    				} else
+    					System.out.println("Invalid VertexUp Query");
+    				break;
+    	
+    			case "vertexdown":
+    				if (words.length == 2) {
+    					g.vertexDown(words[1]);
+    				} else
+    					System.out.println("Invalid VertexDown Query");
+    				break;
+    	
+    			case "deleteedge":
+    				if (words.length == 3) {
+    					g.deleteEdge(words[1], words[2]);
+    				} else
+    					System.out.println("Invalid DeleteEdge Query");
+    				break;
+    	
+    			case "addedge":
+    				if (words.length == 4) {
+    					g.addNewEdge(words[1], words[2], Float.parseFloat(words[3]));
+    				} else
+    					System.out.println("Invalid AddEdge Query");
+    				break;
+    	
+    			default:
+    				System.out.println("Invalid Query !!");
+    				break;
+    			}
+    		}
+    		    
+		} catch (NoSuchElementException e) {
+			System.out.println("Invalid Vertex Name");
+		} catch (GraphException e) {
+			System.err.println(e);
+		}
+		return true;
+	}
+
+    /**
+     * A main routine that:
+     * 1. Reads a file containing edges (supplied as a command-line parameter);
+     * 2. Forms the graph;
+     * 3. Repeatedly prompts for two vertices and
+     *    runs the shortest path algorithm.
+     * The data file is a sequence of lines of the format
+     *    source destination 
+     * @throws IOException 
+     * @throws NumberFormatException 
+     */
+    
+    
+    public static void main( String [ ] args ) throws NumberFormatException, IOException
+    {
+        Graph g = new Graph( );
+        try
+        {
+            FileReader fin = new FileReader( args[0] );
+            Scanner graphFile = new Scanner( fin );
+
+            // Read the edges and insert
+            String line;
+            while( graphFile.hasNextLine( ) )
+            {
+                line = graphFile.nextLine( );
+                StringTokenizer st = new StringTokenizer( line );
+
+                try
+                {
+                    if( st.countTokens( ) != 3 )
+                    {
+                        System.err.println( "Skipping ill-formatted line " + line );
+                        continue;
+                    }
+                    String source  = st.nextToken( );
+                    String dest    = st.nextToken( );
+                    float time	   = Float.parseFloat(st.nextToken( ));
+                    g.addNewEdge( source, dest, time );
+                    g.addNewEdge( dest, source, time );
+                }
+                catch( NumberFormatException e )
+                  { System.err.println( "Skipping ill-formatted line " + line ); }
+             }
+         }
+         catch( IOException e )
+           { System.err.println( e ); }
+         System.out.println( "File read..." );
+         // System.out.println(g.vertexMap);
+         System.out.println( g.vertexMap.size( ) + " vertices" );
+        
+         InputStream is1 = new FileInputStream(args[1]);
+     	 BufferedReader buf1 = new BufferedReader(new InputStreamReader(is1));
+
+		 PrintStream o = new PrintStream(new File(args[2]));
+	     System.setOut(o);
+	        PrintStream console = System.out;
+	        System.setOut(console);
+	         //System.out.println("This will be written to the text file");
+			
+         while( processRequest( buf1, g ) )
+             ;    
+    }
+
+
+/**
+ * Path Class which stores the name of a Path.
+ */
+class Path {
+	public String str;
+	public double dist;
+
+	public Path(String s, float d) {
+		str = s;
+		dist = d;
+	}
+
+}
+
+
+/**
+* This class which stores a pair of Strings.
+*/
+
+
+class Pair
+{
+	private final String src,dest;
+
+	public Pair(String src, String dest) {
+		super();
+		this.src = src;
+		this.dest = dest;
+	}
+	public String src()
+	{
+		return src;
+	}
+	public String dest()
+	{
+		return dest;
+	}
+}
+class MinHeap {
+	private Path[] Heap; //Heap variable declared of Path datatype
+	private int size; //Size of the heap 
+	private int maxsize; //Maxsize of the heap (total number of vertices)
+
+	private static final int FRONT = 1; //Constant storing the Front value
+
+	//Constructor which initializes the Min-Heap.
+	public MinHeap(int maxsize) {
+		this.maxsize = maxsize;
+		this.size = 0;
+		Heap = new Path[this.maxsize + 1];
+		Heap[0] = new Path("null", (float) Integer.MIN_VALUE);
+	}
+	
+	//Returns the size of the Heap
+	public int size() {
+		return size;
+	}
+	
+	//Returns the Parent Node of a Vertex
+	private int parent(int pos) {
+		return pos / 2;
+	}
+
+	//Returns the left child of a node
+	private int leftChild(int pos) {
+		return (2 * pos);
+	}
+	
+	//Returns the right child of a node
+	private int rightChild(int pos) {
+		return (2 * pos) + 1;
+	}
+
+	//Checks if the node is a leaf node or not
+	private boolean isLeaf(int pos) {
+		if (pos - 1 >= (size / 2) && pos <= size) {
+			return true;
+		}
+		return false;
+	}
+	
+	//Swaps the position in the heap if the child node is smaller than the parent.
+	private void swap(int fpos, int spos) {
+		Path tmp;
+		tmp = Heap[fpos];
+		Heap[fpos] = Heap[spos];
+		Heap[spos] = tmp;
+	}
+	
+	//performs the Min-Heapify function of the tree when called.
+	private void minHeapify(int pos) {
+		if (!isLeaf(pos) && this.size > 0) {
+			if (Heap[pos].dist > Heap[leftChild(pos)].dist
+					|| Heap[pos].dist > Heap[rightChild(pos)].dist) {
+				if (Heap[leftChild(pos)].dist < Heap[rightChild(pos)].dist) {
+					swap(pos, leftChild(pos));
+					minHeapify(leftChild(pos));
+				} else {
+					swap(pos, rightChild(pos));
+					minHeapify(rightChild(pos));
+				}
+			}
+		}
+	}
+
+	//Inserts a new element in the heap
+	public void insert(Path element) {
+		Heap[++size] = element;
+		int current = size;
+		while (Heap[current].dist < Heap[parent(current)].dist) {
+			swap(current, parent(current));
+			current = parent(current);
+		}
+	}
+
+	//Performs Min-Heap on the tree
+	public void minHeap() {
+		for (int pos = (size / 2); pos >= 1; pos--) {
+			minHeapify(pos);
+		}
+	}
+	
+	//Returns the root node i.e the smallest value from the heap and then heapify the tree
+	public Path remove() {
+		Path popped = Heap[FRONT];
+		Heap[FRONT] = Heap[size--];
+		minHeapify(FRONT);
+		return popped;
+	}
+
+}
+}
+
